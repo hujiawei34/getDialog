@@ -60,6 +60,26 @@ def extract_chapters(input_file, output_dir=None):
         logger.error(f"❌ 章节识别失败: {e}")
         return False
 
+def extract_chapters_to_files(input_file, output_dir=None):
+    """步骤2附加: 章节文件提取"""
+    try:
+        from steps.step02_chapter import chapter_extractor
+        logger.info("=== 执行章节文件提取 ===")
+        
+        # 创建提取器
+        extractor = chapter_extractor.ChapterExtractor()
+        
+        # 处理文件
+        result = extractor.extract_chapters_to_files(input_file, output_dir)
+        if result:
+            logger.info("✅ 章节文件提取完成")
+        else:
+            logger.error("❌ 章节文件提取失败")
+        return result
+    except Exception as e:
+        logger.error(f"❌ 章节文件提取失败: {e}")
+        return False
+
 def extract_characters(input_file, output_file=None):
     """步骤3: 人物名称提取"""
     try:
@@ -136,6 +156,9 @@ def main():
   # 章节识别
   python main.py --step chapter --input data/ziyang_utf8.txt --output output/
   
+  # 章节文件提取
+  python main.py --step extract --input data/ziyang_utf8.txt --output data/
+  
   # 人物名称提取
   python main.py --step character --input data/ziyang_utf8.txt --output output/
   
@@ -150,7 +173,7 @@ def main():
     )
     
     parser.add_argument("--step", 
-                       choices=["setup", "encoding", "chapter", "character", "model", "all"],
+                       choices=["setup", "encoding", "chapter", "extract", "character", "model", "all"],
                        required=True,
                        help="执行步骤")
     
@@ -179,7 +202,7 @@ def main():
     if args.step == "setup" and not args.action:
         args.action = "install"
     
-    if args.step in ["encoding", "chapter", "character", "all"] and not args.input:
+    if args.step in ["encoding", "chapter", "extract", "character", "all"] and not args.input:
         parser.error(f"步骤 {args.step} 需要指定 --input 参数")
     
     if args.step == "model" and not args.action:
@@ -196,6 +219,9 @@ def main():
     
     elif args.step == "chapter":
         success = extract_chapters(args.input, args.output)
+    
+    elif args.step == "extract":
+        success = extract_chapters_to_files(args.input, args.output)
     
     elif args.step == "character":
         success = extract_characters(args.input, args.output)
@@ -222,7 +248,11 @@ def main():
         if not extract_chapters(encoding_output or args.input, args.output):
             sys.exit(1)
         
-        # 4. 人物名称提取
+        # 4. 章节文件提取
+        if not extract_chapters_to_files(encoding_output or args.input, args.output):
+            sys.exit(1)
+        
+        # 5. 人物名称提取
         if not extract_characters(encoding_output or args.input, args.output):
             sys.exit(1)
         
