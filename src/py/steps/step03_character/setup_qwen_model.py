@@ -22,65 +22,6 @@ class QwenModelManager:
         self.model_dir = Path(model_dir)
         self.model_dir.mkdir(exist_ok=True)
         self.config_file = self.model_dir / "model_config.json"
-        
-    def install_dependencies(self):
-        """安装必要的依赖包"""
-        requirements = [
-            "torch>=2.0.0",
-            "transformers>=4.37.0", 
-            "accelerate>=0.26.0",
-            "tiktoken",
-            "einops",
-            "transformers_stream_generator>=0.0.4",
-            "scipy",
-            "peft>=0.4.0",
-            "huggingface_hub",
-            "modelscope",
-        ]
-        
-        logger.info("正在安装依赖包...")
-        for package in requirements:
-            logger.info(f"安装 {package}...")
-            try:
-                subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-            except subprocess.CalledProcessError as e:
-                logger.error(f"安装 {package} 失败: {e}")
-                return False
-        
-        logger.info("依赖安装完成！")
-        return True
-    
-    def check_system_requirements(self):
-        """检查系统配置"""
-        try:
-            import psutil
-        except ImportError:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "psutil"])
-            import psutil
-        
-        # 检查内存
-        memory_gb = psutil.virtual_memory().total / (1024**3)
-        logger.info(f"系统内存: {memory_gb:.1f}GB")
-        
-        requirements = {
-            "memory_ok": memory_gb >= 8,
-            "gpu_available": torch.cuda.is_available(),
-            "gpu_memory": 0
-        }
-        
-        if memory_gb < 8:
-            logger.warning("⚠️  警告: 内存不足8GB，可能影响性能")
-        
-        # 检查GPU
-        if torch.cuda.is_available():
-            gpu_name = torch.cuda.get_device_name(0)
-            gpu_memory = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-            requirements["gpu_memory"] = gpu_memory
-            logger.info(f"GPU: {gpu_name} ({gpu_memory:.1f}GB)")
-        else:
-            logger.info("未检测到GPU，将使用CPU运行（速度较慢）")
-        
-        return requirements
     
     def download_model_from_huggingface(self, model_name: str = "Qwen/Qwen2.5-3B-Instruct"):
         """从HuggingFace下载模型"""
@@ -125,6 +66,7 @@ class QwenModelManager:
         """从ModelScope下载模型"""
         try:
             from modelscope import snapshot_download
+            from utils.constants import PROJECT_ROOT
             
             logger.info(f"从ModelScope下载模型: {model_name}")
             
@@ -133,10 +75,19 @@ class QwenModelManager:
                 cache_dir=str(self.model_dir)
             )
             
+            # 转换为相对于PROJECT_ROOT的路径
+            model_path = Path(model_dir)
+            try:
+                relative_path = model_path.relative_to(PROJECT_ROOT)
+                model_path_str = str(relative_path)
+            except ValueError:
+                # 如果无法转换为相对路径，使用绝对路径
+                model_path_str = str(model_path)
+            
             # 保存配置
             config = {
                 "model_name": model_name,
-                "model_path": model_dir,
+                "model_path": model_path_str,
                 "source": "modelscope",
                 "download_success": True
             }
@@ -162,6 +113,12 @@ class QwenModelManager:
                 config = json.load(f)
             
             model_path = config.get("model_path")
+            
+            # 如果是相对路径，基于PROJECT_ROOT解析
+            from utils.constants import PROJECT_ROOT
+            if not os.path.isabs(model_path):
+                model_path = str(PROJECT_ROOT / model_path)
+            
             if not os.path.exists(model_path):
                 logger.error(f"模型路径不存在: {model_path}")
                 return False
@@ -192,57 +149,6 @@ class QwenModelManager:
             logger.error(f"读取模型配置失败: {e}")
             return None
 
-def main():
-    """命令行工具"""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Qwen模型管理工具")
-    parser.add_argument("--action", choices=["install", "download", "verify", "info"], 
-                       required=True, help="执行的操作")
-    parser.add_argument("--source", choices=["huggingface", "modelscope"], 
-                       default="modelscope", help="模型下载源")
-    parser.add_argument("--model-dir", default="./models", help="模型存储目录")
-    
-    args = parser.parse_args()
-    
-    manager = QwenModelManager(args.model_dir)
-    
-    if args.action == "install":
-        # 检查系统要求
-        requirements = manager.check_system_requirements()
-        print(f"系统要求检查: {requirements}")
-        
-        # 安装依赖
-        success = manager.install_dependencies()
-        if success:
-            print("✅ 依赖安装成功")
-        else:
-            print("❌ 依赖安装失败")
-            
-    elif args.action == "download":
-        if args.source == "huggingface":
-            success = manager.download_model_from_huggingface()
-        else:
-            success = manager.download_model_from_modelscope()
-        
-        if success:
-            print("✅ 模型下载成功")
-        else:
-            print("❌ 模型下载失败")
-            
-    elif args.action == "verify":
-        if manager.verify_model():
-            print("✅ 模型验证成功")
-        else:
-            print("❌ 模型验证失败")
-            
-    elif args.action == "info":
-        info = manager.get_model_info()
-        if info:
-            print("模型信息:")
-            print(json.dumps(info, indent=2, ensure_ascii=False))
-        else:
-            print("❌ 无法获取模型信息")
-
-if __name__ == "__main__":
-    main()
+# 注意：此模块不支持直接执行，请通过main.py调用
+# 如需执行模型管理操作，请使用：
+# python main.py --step model --action [install|download|verify|info]

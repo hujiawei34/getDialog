@@ -9,25 +9,10 @@ import os
 
 def install_dependencies():
     """安装必要的依赖包"""
-    
-    requirements = [
-        "torch>=2.0.0",
-        "transformers>=4.37.0", 
-        "accelerate>=0.26.0",
-        "tiktoken",
-        "einops",
-        "transformers_stream_generator>=0.0.4",
-        "scipy",
-        "peft>=0.4.0",
-        "huggingface_hub",
-        "modelscope",  # 用于从ModelScope下载模型
-    ]
+    from utils.constants import REQUIREMENTS_FILE
     
     print("正在安装依赖包...")
-    for package in requirements:
-        print(f"安装 {package}...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-    
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", str(REQUIREMENTS_FILE)])
     print("依赖安装完成！")
 
 def check_system():
@@ -50,8 +35,6 @@ def check_system():
     else:
         print("未检测到GPU，将使用CPU运行（速度较慢）")
 
-if __name__ == "__main__":
-    print("=== Qwen3-4B环境准备 ===")
-    check_system()
-    install_dependencies()
-    print("环境准备完成！")
+# 注意：此模块不支持直接执行，请通过main.py调用
+# 如需执行环境准备，请使用：
+# python main.py --step setup --action install

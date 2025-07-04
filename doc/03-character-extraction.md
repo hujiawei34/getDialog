@@ -21,388 +21,56 @@
 
 ## 技术实现方案
 
-### 1. 中文人名识别策略
+### 1. 基于Qwen3-8B模型的人名识别策略
 
-#### 基于规则的方法
-
-```python
-# 中文姓氏列表（常见500姓）
-CHINESE_SURNAMES = {
-    '赵', '钱', '孙', '李', '周', '吴', '郑', '王', '冯', '陈',
-    '褚', '卫', '蒋', '沈', '韩', '杨', '朱', '秦', '尤', '许',
-    # ... 更多姓氏
-}
-
-# 人名识别模式
-NAME_PATTERNS = [
-    r'[赵钱孙李周吴郑王冯陈...]{1}[一-龥]{1,3}',  # 姓+名（2-4字）
-    r'[一-龥]{2,4}(?=说道?|道|说|曰)',           # 说话者模式
-    r'(?<=，)[一-龥]{2,4}(?=微微|缓缓|静静)',      # 动作描述中的人名
-    r'(?<=对)[一-龥]{2,4}(?=说|道)',             # 对话对象
-]
-```
-
-#### 基于上下文的识别
+#### LLM驱动的人名提取
 
 ```python
-# 人名上下文特征
-CONTEXT_PATTERNS = {
-    'speaker_context': [
-        r'([一-龥]{2,4})(?:说道?|道|说|曰|开口|低声|高声|冷声)',
-        r'([一-龥]{2,4})(?:摇头|点头|微笑|叹息|皱眉)',
-    ],
-    'address_context': [
-        r'(?:对|向|找)([一-龥]{2,4})(?:说|道|问)',
-        r'([一-龥]{2,4})(?:师父|师兄|师姐|师弟|师妹)',
-    ],
-    'possession_context': [
-        r'([一-龥]{2,4})的(?:父亲|母亲|儿子|女儿|妻子|丈夫)',
-        r'([一-龥]{2,4})(?:家|府|院|楼|轩)',
-    ]
-}
+def extract_names_with_llm(self, text: str) -> List[str]:
+    """使用Qwen3-8B模型提取人物姓名"""
+    prompt = f"""请从以下中文小说文本中提取所有人物姓名。
+    
+要求：
+1. 只提取真实的人物姓名，不要提取代词、称谓或地名
+2. 每行返回一个人名，不要添加其他内容
+3. 如果同一人物有多个称呼，只返回最正式的姓名
+
+文本：
+{text}
+
+人物姓名："""
+    
+    # 调用模型生成
+    response = self.generate_response(prompt)
+    names = self.parse_name_list(response)
+    return names
 ```
 
-### 2. 核心类设计
-
-#### CharacterExtractor 类
+#### 基于提示工程的别名识别
 
 ```python
-@dataclass
-class Character:
-    name: str                    # 主要姓名
-    aliases: List[str]           # 别名列表
-    titles: List[str]            # 称谓列表
-    gender: str                  # 性别
-    role_type: str              # 角色类型
-    first_appearance: dict       # 首次出现位置
-    appearances: List[dict]      # 所有出现记录
-    relationships: List[dict]    # 人物关系
-    attributes: dict            # 其他属性
+def identify_aliases_with_llm(self, text: str, main_names: List[str]) -> Dict[str, List[str]]:
+    """使用LLM识别人物别名和称谓"""
+    aliases_map = {}
+    
+    for name in main_names:
+        prompt = f"""在以下文本中，找出"{name}"这个人物的所有别名、称谓和不同叫法。
 
-class CharacterExtractor:
-    def __init__(self, config=None):
-        self.config = config or self._default_config()
-        self.characters = {}
-        self.name_variants = {}  # 名称变体映射
+文本：
+{text}
+
+请列出"{name}"的所有别名：
+- 包括：昵称、尊称、简称、外号等
+- 格式：每行一个别名
+- 如果没有别名，回答"无"
+
+"{name}"的别名："""
         
-    def extract_from_text(self, text, chapter_info=None):
-        """从文本中提取人物信息"""
-        
-    def _identify_names(self, text):
-        """识别文本中的所有可能人名"""
-        
-    def _resolve_aliases(self, names):
-        """解决别名和称谓问题"""
-        
-    def _classify_characters(self):
-        """根据出现频次等信息分类人物"""
-        
-    def _extract_relationships(self, text):
-        """提取人物关系信息"""
-```
-
-### 3. 人名识别算法
-
-#### 步骤1：候选人名提取
-
-```python
-def extract_candidate_names(self, text):
-    """
-    提取候选人名
-    """
-    candidates = set()
+        response = self.generate_response(prompt)
+        aliases = self.parse_alias_list(response, name)
+        aliases_map[name] = aliases
     
-    # 基于正则表达式的提取
-    for pattern in self.config['name_patterns']:
-        matches = re.findall(pattern, text)
-        candidates.update(matches)
-    
-    # 基于上下文的提取
-    for context_type, patterns in CONTEXT_PATTERNS.items():
-        for pattern in patterns:
-            matches = re.findall(pattern, text)
-            for match in matches:
-                candidates.add(match)
-    
-    # 过滤明显不是人名的词
-    filtered_candidates = []
-    for candidate in candidates:
-        if self._is_valid_name(candidate):
-            filtered_candidates.append(candidate)
-    
-    return filtered_candidates
-
-def _is_valid_name(self, name):
-    """
-    判断是否为有效人名
-    """
-    # 长度检查
-    if len(name) < 2 or len(name) > 4:
-        return False
-    
-    # 排除常见非人名词汇
-    exclude_words = {'这里', '那里', '如此', '因此', '所以', '然后', '什么', '怎么'}
-    if name in exclude_words:
-        return False
-    
-    # 检查是否包含姓氏
-    if name[0] in CHINESE_SURNAMES:
-        return True
-    
-    # 其他启发式规则
-    return self._heuristic_name_check(name)
-```
-
-#### 步骤2：人名聚类和别名识别
-
-```python
-def resolve_name_variants(self, candidates):
-    """
-    解决人名变体和别名问题
-    """
-    # 基于编辑距离的相似性计算
-    from difflib import SequenceMatcher
-    
-    name_groups = []
-    processed = set()
-    
-    for name in candidates:
-        if name in processed:
-            continue
-            
-        group = [name]
-        processed.add(name)
-        
-        # 寻找相似的名字
-        for other_name in candidates:
-            if other_name not in processed:
-                similarity = SequenceMatcher(None, name, other_name).ratio()
-                if similarity > self.config['name_similarity_threshold']:
-                    group.append(other_name)
-                    processed.add(other_name)
-        
-        name_groups.append(group)
-    
-    return name_groups
-
-def identify_formal_titles(self, text, character_name):
-    """
-    识别人物的正式称谓和别名
-    """
-    titles = []
-    
-    # 称谓模式
-    title_patterns = [
-        rf'{character_name}(?:师父|师兄|师姐|先生|夫人|公子|小姐)',
-        rf'(?:老|小|大){character_name}',
-        rf'{character_name[0]}(?:某|氏|公|君)',
-    ]
-    
-    for pattern in title_patterns:
-        matches = re.findall(pattern, text)
-        titles.extend(matches)
-    
-    return list(set(titles))
-```
-
-#### 步骤3：角色重要性分析
-
-```python
-def analyze_character_importance(self, characters):
-    """
-    分析角色的重要性和类型
-    """
-    for char_name, char_info in characters.items():
-        # 出现频次
-        appearance_count = len(char_info.appearances)
-        
-        # 对话数量
-        dialogue_count = sum(1 for app in char_info.appearances if app.get('type') == 'dialogue')
-        
-        # 章节分布
-        chapters_appeared = len(set(app['chapter'] for app in char_info.appearances))
-        
-        # 计算重要性得分
-        importance_score = (
-            appearance_count * 0.4 +
-            dialogue_count * 0.4 +
-            chapters_appeared * 0.2
-        )
-        
-        # 角色分类
-        if importance_score > self.config['main_character_threshold']:
-            char_info.role_type = 'main_character'
-        elif importance_score > self.config['supporting_character_threshold']:
-            char_info.role_type = 'supporting_character'
-        else:
-            char_info.role_type = 'minor_character'
-        
-        char_info.importance_score = importance_score
-```
-
-### 4. 关系提取算法
-
-#### 社交关系识别
-
-```python
-def extract_relationships(self, text, characters):
-    """
-    提取人物间的关系
-    """
-    relationships = []
-    
-    # 关系模式
-    relationship_patterns = {
-        'family': [
-            r'([一-龥]{2,4})(?:的)?(?:父亲|母亲|儿子|女儿|兄弟|姐妹)([一-龥]{2,4})',
-            r'([一-龥]{2,4})(?:与|和)([一-龥]{2,4})(?:夫妻|夫妇)',
-        ],
-        'social': [
-            r'([一-龥]{2,4})(?:的)?(?:师父|师傅|老师)([一-龥]{2,4})',
-            r'([一-龥]{2,4})(?:的)?(?:朋友|好友|挚友)([一-龥]{2,4})',
-        ],
-        'antagonistic': [
-            r'([一-龥]{2,4})(?:与|和)([一-龥]{2,4})(?:为敌|作对|争斗)',
-            r'([一-龥]{2,4})(?:杀死|击败|战胜)(?:了)?([一-龥]{2,4})',
-        ]
-    }
-    
-    for relation_type, patterns in relationship_patterns.items():
-        for pattern in patterns:
-            matches = re.findall(pattern, text)
-            for match in matches:
-                char1, char2 = match
-                if char1 in characters and char2 in characters:
-                    relationships.append({
-                        'character1': char1,
-                        'character2': char2,
-                        'relationship_type': relation_type,
-                        'evidence': match
-                    })
-    
-    return relationships
-```
-
-#### 共现关系分析
-
-```python
-def analyze_co_occurrence(self, characters, chapters):
-    """
-    分析人物共现关系
-    """
-    co_occurrence_matrix = {}
-    
-    for chapter in chapters:
-        # 获取本章出现的人物
-        chapter_characters = self._get_chapter_characters(chapter['content'])
-        
-        # 计算两两共现
-        for i, char1 in enumerate(chapter_characters):
-            for char2 in chapter_characters[i+1:]:
-                pair = tuple(sorted([char1, char2]))
-                co_occurrence_matrix[pair] = co_occurrence_matrix.get(pair, 0) + 1
-    
-    # 转换为关系强度
-    relationships = []
-    for (char1, char2), count in co_occurrence_matrix.items():
-        if count >= self.config['min_co_occurrence']:
-            strength = min(count / self.config['max_co_occurrence'], 1.0)
-            relationships.append({
-                'character1': char1,
-                'character2': char2,
-                'relationship_type': 'co_occurrence',
-                'strength': strength,
-                'frequency': count
-            })
-    
-    return relationships
-```
-
-### 5. 性别和属性识别
-
-```python
-def identify_gender_and_attributes(self, character_name, context_texts):
-    """
-    识别人物的性别和其他属性
-    """
-    attributes = {}
-    
-    # 性别识别模式
-    gender_patterns = {
-        'male': [
-            rf'{character_name}(?:他|公子|先生|君|郎|男子|男人)',
-            rf'(?:他|这个男子|这个男人)(?:就是|便是)?{character_name}',
-        ],
-        'female': [
-            rf'{character_name}(?:她|小姐|夫人|女子|女人|姑娘)',
-            rf'(?:她|这个女子|这个女人|这个姑娘)(?:就是|便是)?{character_name}',
-        ]
-    }
-    
-    male_score = 0
-    female_score = 0
-    
-    for text in context_texts:
-        for pattern in gender_patterns['male']:
-            male_score += len(re.findall(pattern, text))
-        for pattern in gender_patterns['female']:
-            female_score += len(re.findall(pattern, text))
-    
-    if male_score > female_score:
-        attributes['gender'] = 'male'
-    elif female_score > male_score:
-        attributes['gender'] = 'female'
-    else:
-        attributes['gender'] = 'unknown'
-    
-    # 职业/身份识别
-    profession_patterns = {
-        'scholar': rf'{character_name}(?:先生|学士|书生|文人)',
-        'martial_artist': rf'{character_name}(?:武者|剑客|刀客|侠客)',
-        'official': rf'{character_name}(?:大人|官员|县令|知府)',
-        'merchant': rf'{character_name}(?:商人|掌柜|老板)',
-    }
-    
-    for profession, pattern in profession_patterns.items():
-        if any(re.search(pattern, text) for text in context_texts):
-            attributes['profession'] = profession
-            break
-    
-    return attributes
-```
-
-## 配置文件设计
-
-### character_config.json
-
-```json
-{
-    "extraction": {
-        "min_name_length": 2,
-        "max_name_length": 4,
-        "name_similarity_threshold": 0.8,
-        "min_appearances": 3
-    },
-    "classification": {
-        "main_character_threshold": 50,
-        "supporting_character_threshold": 10,
-        "min_co_occurrence": 5,
-        "max_co_occurrence": 100
-    },
-    "patterns": {
-        "speaker_indicators": ["说道", "说", "道", "曰", "开口", "低声"],
-        "action_indicators": ["微笑", "点头", "摇头", "皱眉", "叹息"],
-        "relationship_keywords": {
-            "family": ["父亲", "母亲", "儿子", "女儿", "兄弟", "姐妹", "夫妻"],
-            "social": ["朋友", "师父", "师兄", "师姐", "同门"],
-            "professional": ["同事", "上级", "下属", "伙伴"]
-        }
-    },
-    "filters": {
-        "exclude_words": ["这里", "那里", "如此", "因此", "什么", "怎么", "为什么"],
-        "common_titles": ["先生", "夫人", "公子", "小姐", "大人"]
-    }
-}
+    return aliases_map
 ```
 
 ## 输出格式设计
