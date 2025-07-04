@@ -10,6 +10,7 @@ import chardet
 import argparse
 
 from utils.constants import PROJECT_ROOT
+from utils.log_util import log_info, log_warning, log_error
 
 
 def detect_encoding(file_path):
@@ -35,10 +36,10 @@ def convert_to_utf8(input_file, output_file=None, source_encoding=None):
         encoding_info = detect_encoding(input_file)
         source_encoding = encoding_info['encoding']
         confidence = encoding_info['confidence']
-        print(f"检测到文件编码: {source_encoding} (置信度: {confidence:.2f})")
+        log_info(f"检测到文件编码: {source_encoding} (置信度: {confidence:.2f})")
         
         if confidence < 0.8:
-            print("警告: 编码检测置信度较低，转换可能出现问题")
+            log_warning("编码检测置信度较低，转换可能出现问题")
     
     
     # 设置输出文件路径
@@ -57,14 +58,14 @@ def convert_to_utf8(input_file, output_file=None, source_encoding=None):
             content = content.replace('\r\n', '\n').replace('\r', '\n')
             f.write(content)
         
-        print(f"转换完成: {input_file} -> {output_file}")
-        print(f"源编码: {source_encoding} -> 目标编码: UTF-8")
+        log_info(f"转换完成: {input_file} -> {output_file}")
+        log_info(f"源编码: {source_encoding} -> 目标编码: UTF-8")
         
         # 验证转换结果
         verify_conversion(output_file)
         
     except Exception as e:
-        print(f"转换失败: {e}")
+        log_error(f"转换失败: {e}")
         return False
     
     return True
@@ -77,11 +78,11 @@ def verify_conversion(file_path):
             content = f.read()
             line_count = len(content.splitlines())
             char_count = len(content)
-            print(f"验证成功: 文件包含 {line_count} 行，{char_count} 个字符")
+            log_info(f"验证成功: 文件包含 {line_count} 行，{char_count} 个字符")
     except UnicodeDecodeError as e:
-        print(f"验证失败: UTF-8 解码错误 - {e}")
+        log_error(f"验证失败: UTF-8 解码错误 - {e}")
     except Exception as e:
-        print(f"验证失败: {e}")
+        log_error(f"验证失败: {e}")
 
 
 def main():
@@ -94,7 +95,7 @@ def main():
     args = parser.parse_args()
     
     if not os.path.exists(args.input_file):
-        print(f"错误: 文件不存在 - {args.input_file}")
+        log_error(f"文件不存在 - {args.input_file}")
         return
     
     # 创建备份
@@ -102,15 +103,15 @@ def main():
         backup_file = args.input_file + '.bak'
         import shutil
         shutil.copy2(args.input_file, backup_file)
-        print(f"已创建备份文件: {backup_file}")
+        log_info(f"已创建备份文件: {backup_file}")
     
     # 执行转换
     success = convert_to_utf8(args.input_file, args.output, args.encoding)
     
     if success:
-        print("编码转换完成！")
+        log_info("编码转换完成！")
     else:
-        print("编码转换失败！")
+        log_error("编码转换失败！")
 
 
 if __name__ == '__main__':

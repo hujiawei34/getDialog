@@ -7,6 +7,7 @@ import argparse
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass, asdict
 from pathlib import Path
+from utils.log_util import log_info, log_error
 
 
 @dataclass
@@ -452,13 +453,13 @@ def main():
     visualizer = ChapterStructureVisualizer()
     
     if args.verbose:
-        print(f"正在解析文件: {args.input_file}")
+        log_info(f"正在解析文件: {args.input_file}")
     
     # 解析文件
     try:
         structure_data = visualizer.parse_file(args.input_file)
     except Exception as e:
-        print(f"错误: 无法解析文件 {args.input_file}: {e}")
+        log_error(f"无法解析文件 {args.input_file}: {e}")
         return 1
     
     # 生成可视化
@@ -475,9 +476,9 @@ def main():
     if args.output:
         with open(args.output, 'w', encoding='utf-8') as f:
             f.write(output_content)
-        print(f"可视化结果已保存到: {args.output}")
+        log_info(f"可视化结果已保存到: {args.output}")
     else:
-        print(output_content)
+        log_info(output_content)
     
     return 0
 
