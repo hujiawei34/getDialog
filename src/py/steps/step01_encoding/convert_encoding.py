@@ -5,8 +5,11 @@
 """
 
 import os
+from pathlib import Path
 import chardet
 import argparse
+
+from utils.constants import PROJECT_ROOT
 
 
 def detect_encoding(file_path):
@@ -26,6 +29,7 @@ def convert_to_utf8(input_file, output_file=None, source_encoding=None):
         output_file: 输出文件路径，如果为None则覆盖原文件
         source_encoding: 源文件编码，如果为None则自动检测
     """
+    input_file=Path(PROJECT_ROOT/input_file)
     # 检测源文件编码
     if source_encoding is None:
         encoding_info = detect_encoding(input_file)
@@ -36,10 +40,13 @@ def convert_to_utf8(input_file, output_file=None, source_encoding=None):
         if confidence < 0.8:
             print("警告: 编码检测置信度较低，转换可能出现问题")
     
+    
     # 设置输出文件路径
     if output_file is None:
         output_file = input_file
-    
+    else:
+        output_file=Path(PROJECT_ROOT/output_file)
+        
     try:
         # 读取源文件
         with open(input_file, 'r', encoding=source_encoding, errors='replace') as f:

@@ -1,0 +1,26 @@
+{
+  "gpu": {
+    "device_id": 1,
+    "enable_cuda": true,
+    "auto_select": false,
+    "memory_threshold": 0.8
+  },
+  "model": {
+    "max_length": 512,
+    "temperature": 0.7,
+    "do_sample": true,
+    "batch_size": 1
+  },
+  "extraction": {
+    "text_chunk_size": 2000,
+    "context_window": 1000,
+    "min_name_length": 2,
+    "max_name_length": 10
+  },
+  "output": {
+    "format": "json",
+    "include_statistics": true,
+    "include_relationships": true,
+    "save_intermediate_results": false
+  }
+}

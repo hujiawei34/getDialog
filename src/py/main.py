@@ -35,7 +35,7 @@ def convert_encoding(input_file, output_file=None):
     try:
         from steps.step01_encoding import convert_encoding
         logger.info("=== 执行编码转换 ===")
-        result = convert_encoding.convert_file_encoding(input_file, output_file)
+        result = convert_encoding.convert_to_utf8(input_file, output_file)
         if result:
             logger.info("✅ 编码转换完成")
         else:
@@ -60,8 +60,28 @@ def extract_chapters(input_file, output_dir=None):
         logger.error(f"❌ 章节识别失败: {e}")
         return False
 
+def extract_characters(input_file, output_file=None):
+    """步骤3: 人物名称提取"""
+    try:
+        from steps.step03_character import character_extractor
+        logger.info("=== 执行人物名称提取 ===")
+        
+        # 创建提取器
+        extractor = character_extractor.QwenCharacterExtractor()
+        
+        # 处理文件
+        result = extractor.process_file(input_file, output_file)
+        if result:
+            logger.info("✅ 人物名称提取完成")
+        else:
+            logger.error("❌ 人物名称提取失败")
+        return result
+    except Exception as e:
+        logger.error(f"❌ 人物名称提取失败: {e}")
+        return False
+
 def setup_qwen_model(action, source="modelscope", model_dir=None):
-    """步骤3: Qwen模型管理"""
+    """步骤3附加: Qwen模型管理"""
     try:
         from steps.step03_character import setup_qwen_model
         from utils.constants import MODELS_DIR
@@ -116,6 +136,9 @@ def main():
   # 章节识别
   python main.py --step chapter --input data/ziyang_utf8.txt --output output/
   
+  # 人物名称提取
+  python main.py --step character --input data/ziyang_utf8.txt --output output/
+  
   # Qwen模型管理
   python main.py --step model --action download --source modelscope
   python main.py --step model --action verify
@@ -127,7 +150,7 @@ def main():
     )
     
     parser.add_argument("--step", 
-                       choices=["setup", "encoding", "chapter", "model", "all"],
+                       choices=["setup", "encoding", "chapter", "character", "model", "all"],
                        required=True,
                        help="执行步骤")
     
@@ -156,7 +179,7 @@ def main():
     if args.step == "setup" and not args.action:
         args.action = "install"
     
-    if args.step in ["encoding", "chapter", "all"] and not args.input:
+    if args.step in ["encoding", "chapter", "character", "all"] and not args.input:
         parser.error(f"步骤 {args.step} 需要指定 --input 参数")
     
     if args.step == "model" and not args.action:
@@ -173,6 +196,9 @@ def main():
     
     elif args.step == "chapter":
         success = extract_chapters(args.input, args.output)
+    
+    elif args.step == "character":
+        success = extract_characters(args.input, args.output)
     
     elif args.step == "model":
         # 如果用户指定了model_dir且不是默认值，则使用用户指定的值
@@ -194,6 +220,10 @@ def main():
         
         # 3. 章节识别
         if not extract_chapters(encoding_output or args.input, args.output):
+            sys.exit(1)
+        
+        # 4. 人物名称提取
+        if not extract_characters(encoding_output or args.input, args.output):
             sys.exit(1)
         
         logger.info("✅ 完整流程执行完成")
