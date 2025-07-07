@@ -9,3 +9,7 @@ peft>=0.4.0
 huggingface_hub
 modelscope
 psutil
+pynvml
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+sseclient-py

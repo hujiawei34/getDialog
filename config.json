@@ -1,6 +1,6 @@
 {
   "gpu": {
-    "device_id": 1,
+    "device_id": 3,
     "enable_cuda": true,
     "auto_select": false,
     "memory_threshold": 0.8
