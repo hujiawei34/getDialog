@@ -13,3 +13,4 @@ pynvml
 fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
 sseclient-py
+requests>=2.25.0

@@ -30,16 +30,10 @@
 | `chapter` | 章节结构识别 | 需要 UTF-8 编码的文本 |
 | `extract` | 章节文件提取 | 需要 UTF-8 编码的文本 |
 | `character` | 人物名称提取 | 需要 UTF-8 编码的文本和 Qwen 模型 |
-| `model` | Qwen 模型管理 | 无 |
 | `all` | 完整流程执行 | 无 |
 
 ## 详细执行命令
 
-### 1. 环境准备
-```bash
-# 安装依赖并检查系统环境
-./bin/start.sh --step setup --action install
-```
 
 ### 2. 编码转换
 ```bash
@@ -65,28 +59,6 @@
 ./bin/start.sh --step character --input data/ziyang_utf8.txt --output output/
 ```
 
-### 6. Qwen 模型管理
-
-从 ModelScope 下载模型：
-```bash
-./bin/start.sh --step model --action download --source modelscope
-```
-
-从 Hugging Face 下载模型：
-```bash
-./bin/start.sh --step model --action download --source huggingface
-```
-
-验证模型：
-```bash
-./bin/start.sh --step model --action verify
-```
-
-查看模型信息：
-```bash
-./bin/start.sh --step model --action info
-```
-
 ### 7. 完整流程
 ```bash
 # 执行完整的处理流程
@@ -97,39 +69,19 @@
 
 ### 必需参数
 - `--step`: 执行步骤，必须指定
-  - `setup`: 环境准备
   - `encoding`: 编码转换
   - `chapter`: 章节识别
   - `character`: 人物提取
-  - `model`: 模型管理
   - `all`: 完整流程
 
 ### 可选参数
 - `--input, -i`: 输入文件路径（encoding、chapter、character、all 步骤需要）
 - `--output, -o`: 输出文件/目录路径
-- `--action`: 模型管理操作（setup 和 model 步骤使用）
-  - `install`: 安装依赖
-  - `download`: 下载模型
-  - `verify`: 验证模型
-  - `info`: 查看模型信息
-- `--source`: 模型下载源（model 步骤使用）
-  - `modelscope`: 从 ModelScope 下载（默认）
-  - `huggingface`: 从 Hugging Face 下载
-- `--model-dir`: 模型存储目录（默认：./models）
 
 ## 使用示例
 
 ### 典型使用流程
 
-1. 首次使用，准备环境：
-```bash
-./bin/start.sh --step setup --action install
-```
-
-2. 下载 Qwen 模型：
-```bash
-./bin/start.sh --step model --action download --source modelscope
-```
 
 3. 处理单个文件 - 编码转换：
 ```bash
